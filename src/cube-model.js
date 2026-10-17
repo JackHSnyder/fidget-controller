@@ -4,9 +4,9 @@ export const MIN_FACING = .6;
 export const COLOURS = [
   { id: 'pink', name: 'Pink', hex: '#ee4279', hue: 344, normal: [0, 0, 1] },
   { id: 'purple', name: 'Purple', hex: '#9356c0', hue: 274, normal: [0, -1, 0] },
-  { id: 'orange', name: 'Orange', hex: '#f57625', hue: 20, normal: [-1, 0, 0] },
+  { id: 'orange', name: 'Orange', hex: '#f57625', hue: 20, normal: [1, 0, 0] },
   { id: 'green', name: 'Green', hex: '#86bc48', hue: 94, normal: [0, 0, -1] },
-  { id: 'light-blue', name: 'Light blue', hex: '#2fafd5', hue: 197, normal: [1, 0, 0] },
+  { id: 'light-blue', name: 'Light blue', hex: '#2fafd5', hue: 197, normal: [-1, 0, 0] },
   { id: 'dark-blue', name: 'Dark blue', hex: '#334683', hue: 229, normal: [0, 1, 0] },
 ];
 

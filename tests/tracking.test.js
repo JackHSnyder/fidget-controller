@@ -25,8 +25,8 @@ test('same colour pair can represent different directions depending on roll', ()
   const upright = identity(), rolled = rotation(2, Math.PI / 2);
   const leftTurn = multiply(rotation(1, Math.PI / 2), upright);
   const downTurn = multiply(rotation(0, -Math.PI / 2), rolled);
-  assert.equal(frontFace({ ...pose, r: leftTurn }).colour.id, 'light-blue');
-  assert.equal(frontFace({ ...pose, r: downTurn }).colour.id, 'light-blue');
+  assert.equal(frontFace({ ...pose, r: leftTurn }).colour.id, 'orange');
+  assert.equal(frontFace({ ...pose, r: downTurn }).colour.id, 'orange');
   assert.equal(rotationBetween(upright, leftTurn).direction, 'left');
   assert.equal(rotationBetween(rolled, downTurn).direction, 'up');
 });
@@ -86,7 +86,7 @@ test('continuous video estimates the turn while object scale and position change
   assert.equal(detected.length, 1);
   assert.equal(detected[0].direction, 'left');
   assert.equal(detected[0].from, 'green');
-  assert.equal(detected[0].to, 'light-blue');
+  assert.equal(detected[0].to, 'orange');
 });
 
 test('edge-on face jitter and diagonal turns are not labelled as cardinal turns', () => {

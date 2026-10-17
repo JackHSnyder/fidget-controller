@@ -1,5 +1,5 @@
 import { COLOUR_PROFILES } from './colour-profiles.js';
-import { locateCore, segment, keyCentres } from './vision.js';
+import { locateCore, segment, keyCentres, exposureCalibration } from './vision.js';
 import { fitPose } from './tracker.js';
 import { COLOURS } from './cube-model.js';
 
@@ -35,7 +35,7 @@ export function findToy(image, { calibration = {}, profile = 'auto', expectedWid
       data.set(image.data.subarray(i, i + 4), (y * size + x) * 4);
     }
     return profiles.some(p => {
-      const labels = segment({ data, width: size, height: size }, { ...p.calibration, ...calibration });
+      const labels = segment({ data, width: size, height: size }, exposureCalibration({ ...p.calibration, ...calibration }, core.whiteValue));
       const centres = keyCentres(labels, size);
       // Verify several nearby colours and their geometric arrangement. Local
       // tracking is more permissive; moving the box anywhere in the camera

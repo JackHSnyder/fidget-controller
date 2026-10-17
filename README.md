@@ -20,8 +20,8 @@ Saving a source file updates the browser automatically through Vite.
    the **entire toy**, including the protruding keys. The box becomes square;
    leave a small margin. The tracker follows its position and apparent size.
 2. Keep at least two coloured keys visible. **Automatic** colour setup compares
-   the original daylight profile with a profile measured from the supplied
-   recording. For the recording's camera/lighting, **Recording lighting** can
+   daylight, earlier recording, and dim indoor profiles. The indoor profile
+   and new colour samples adapt to exposure using the surrounding white frame. For the recording's camera/lighting, **Recording lighting** can
    also be selected explicitly. If colours are misclassified under
    your lighting, select each colour under **Colour and toy setup** and click
    an unprinted patch of its plastic in the preview. Samples persist locally.
@@ -50,16 +50,19 @@ microphone or key-press detector is included in this version.
 
 ### Physical layout
 
-The model uses the colour arrangement in the supplied photos:
+The model uses the confirmed **unmirrored** physical layout (green forward, purple up):
 
 | Model direction | Colour |
 | --- | --- |
 | Front | Green |
 | Back | Pink |
-| Left | Orange |
-| Right | Light blue |
+| Left | Light blue |
+| Right | Orange |
 | Top | Purple |
 | Bottom | Dark blue |
+
+Clockwise around green in the unmirrored image: light blue, purple, orange,
+dark blue. The UI mirrors the preview only, after detection.
 
 This describes the toy's geometry, **not** a required starting orientation.
 It may start at any roll or with any face forward. A differently assembled toy
@@ -200,3 +203,21 @@ The build writes the finished site to `dist/`. Upload that folder's contents to
 static hosting when ready. The preview command is for checking the build locally.
 No backend is required. Future camera/microphone features need localhost during
 development or HTTPS when hosted, plus browser permission.
+
+### PC camera robustness checks
+
+The dim-camera changes lower the neutral-frame brightness cutoff, allow one
+covered border, compare narrow and broad frame bands, and constrain frame size
+between observations. Tracking-box size now scales with camera resolution.
+Whole-frame search ranks and suppresses duplicate candidates before verifying
+at most 24 candidates, so textured backgrounds cannot monopolise the worker.
+A central paint hint must agree with actual pixels before constraining the
+model. Model fitting uses the fixed adjacent-key arrangement, and retries
+orientation acquisition if that central evidence contradicts its prior pose.
+
+Validation includes the supplied 35.6-second unmirrored PC recording, low-light
+colour/exposure tests, layout/mirroring tests, and the earlier recording masks
+converted from their mirrored coordinate convention. Heavy occlusion and
+motion blur can still leave a turn uncertain. Use Automatic initially; if you
+saved samples under a different camera, restore default colours or resample
+all six keys under the current lighting.

@@ -75,7 +75,9 @@ export class ScreenTurnEvents {
     let direction = 'uncertain';
     const lengthA = Math.hypot(...a), lengthB = Math.hypot(...b);
     const agree = !lengthA || !lengthB || (a[0] * b[0] + a[1] * b[1]) / lengthA / lengthB > .45;
-    if (agree && (lengthA > .3 || lengthB > .3)) {
+    const adjacent = COLOURS[old.face].normal.reduce((sum, n, i) => sum + n * COLOURS[face].normal[i], 0) === 0;
+    // Opposite faces imply a missed intermediate face, not one menu step.
+    if (adjacent && agree && (lengthA > .3 || lengthB > .3)) {
       direction = directionOf([a[0] + b[0], a[1] + b[1]]);
     }
     this.baseline = { face, time };

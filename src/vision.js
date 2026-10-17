@@ -9,6 +9,14 @@ export function rgbToHsv(r, g, b) {
   return { h: (h + 360) % 360, s: max ? delta / max : 0, v: max / 255 };
 }
 
+// References with a measured white level follow camera exposure changes.
+// Legacy calibration remains usable until the user samples that key again.
+export function exposureCalibration(calibration, whiteValue) {
+  if (!(whiteValue > .08)) return calibration;
+  return Object.fromEntries(Object.entries(calibration).map(([id, ref]) => [id,
+    ref.whiteValue > .08 ? { ...ref, v: Math.min(1, ref.v * whiteValue / ref.whiteValue) } : ref]));
+}
+
 export function classifyPixel(r, g, b, calibration = {}) {
   const { h, s, v } = rgbToHsv(r, g, b);
   if (s < .22 && v > .22) return 6; // white core; not an active face
@@ -144,23 +152,27 @@ export function distanceMaps(labels, size) {
 
 // Locate the neutral core independently of coloured key fitting. This keeps a
 // failed pose from freezing the search box while the real toy continues moving.
-export function locateCore({ data, width, height }, { wide = false, relaxed = false, accept = null } = {}) {
+export function locateCore({ data, width, height }, { wide = false, relaxed = false, accept = null, expectedWidth = null } = {}) {
   const stride = width + 1, sums = new Int32Array(stride * (height + 1));
   for (let y = 0; y < height; y++) for (let x = 0; x < width; x++) {
     const i = y * width + x, hsv = rgbToHsv(data[i * 4], data[i * 4 + 1], data[i * 4 + 2]);
-    const skin = (hsv.h < 50 || hsv.h > 315) && hsv.s > .09;
-    const neutral = !skin && hsv.s < .3 && hsv.v > .44 ? 1 : 0;
+    // Warm white plastic is still neutral; the old cutoff rejected it as skin.
+    const skin = (hsv.h < 50 || hsv.h > 315) && hsv.s > .24;
+    // Dim white plastic in the PC recording is around 0.3–0.4, not 1.0.
+    const neutral = !skin && hsv.s < .3 && hsv.v > .18 ? 1 : 0;
     const k = (y + 1) * stride + x + 1;
     sums[k] = neutral + sums[k - 1] + sums[k - stride] - sums[k - stride - 1];
   }
   const average = (x, y, w, h) => (sums[(y + h) * stride + x + w] - sums[y * stride + x + w] - sums[(y + h) * stride + x] + sums[y * stride + x]) / (w * h);
   let best = null;
+  const candidates = [];
   // Look for a neutral frame around a coloured centre, not simply the largest
   // pale blob (which can be a hand or the wall). No symbols are recognised.
   const minimum = wide ? 6 : Math.round(width * (relaxed ? .10 : .16));
   const maximum = wide ? Math.min(width, height) * .65 : width * (relaxed ? .5 : .4);
-  for (let side = minimum; side <= maximum; side += wide ? Math.max(1, Math.round(side * .14)) : 1) {
-    const band = Math.max(1, Math.round(side * .12));
+  for (const bandRatio of [.12, .2]) for (let side = minimum; side <= maximum; side += wide ? Math.max(1, Math.round(side * .14)) : 1) {
+    if (expectedWidth && (side / width < expectedWidth * .8 || side / width > expectedWidth * 1.3)) continue;
+    const band = Math.max(1, Math.round(side * bandRatio));
     const inset = wide || relaxed ? Math.ceil(side / 2) : null;
     for (let cy = inset ?? Math.round(height * .22); cy < (inset === null ? height * .78 : height - inset); cy += wide ? 2 : 1) for (let cx = inset ?? Math.round(width * .22); cx < (inset === null ? width * .78 : width - inset); cx += wide ? 2 : 1) {
       const x = cx - Math.floor(side / 2), y = cy - Math.floor(side / 2);
@@ -168,30 +180,56 @@ export function locateCore({ data, width, height }, { wide = false, relaxed = fa
       const inner = average(x + band, y + band, side - 2 * band, side - 2 * band);
       if (inner > (relaxed ? .68 : .55)) continue;
       const edges = [average(x, y, side, band), average(x, y + side - band, side, band), average(x, y, band, side), average(x + side - band, y, band, side)];
-      const border = edges.reduce((a, b) => a + b, 0) / 4, weakest = Math.min(...edges);
+      const border = edges.reduce((a, b) => a + b, 0) / 4, weakest = [...edges].sort((a, b) => a - b)[relaxed ? 1 : 0];
       if (border < (relaxed ? .35 : .45) || weakest < (relaxed ? .08 : .2)) continue;
-      const score = border - inner * .6 + weakest * .3 - (wide ? 0 : 2 * ((cx / width - .5) ** 2 + (cy / height - .5) ** 2)) - (wide ? 0 : .08 * Math.log(side / width / .25) ** 2);
-      if (score > .5 && (!best || score > best.score)) {
+      const score = border - inner * .6 + weakest * .3 - (wide ? 0 : 2 * ((cx / width - .5) ** 2 + (cy / height - .5) ** 2)) - (wide ? 0 : .08 * Math.log(side / width / .25) ** 2) - (expectedWidth ? .5 * Math.log(side / width / expectedWidth) ** 2 : 0);
+      if (score > .5 && (accept || !best || score > best.score)) {
         const candidate = { x: cx / width, y: cy / height, width: side / width, height: side / height, extent: side / width, score };
-        if (!accept || accept(candidate)) best = candidate;
+        if (accept) candidates.push(candidate);
+        else best = candidate;
       }
     }
   }
-  if (best) {
-    const channels = [[], [], []], half = Math.max(1, best.width * width * .045);
-    // Four paint samples avoid the printed centre icon, whose contrasting ink
-    // otherwise makes a light-blue key look dark blue (and vice versa).
-    for (const dx of [-.2, .2]) for (const dy of [-.2, .2]) {
-      const cx = (best.x + dx * best.width) * width, cy = (best.y + dy * best.height) * height;
-      for (let y = Math.max(0, Math.floor(cy - half)); y < Math.min(height, cy + half); y++) {
-        for (let x = Math.max(0, Math.floor(cx - half)); x < Math.min(width, cx + half); x++) {
-        const i = (y * width + x) * 4, hsv = rgbToHsv(data[i], data[i + 1], data[i + 2]);
-        if (hsv.s < .25 || hsv.v < .15) continue;
-        for (let c = 0; c < 3; c++) channels[c].push(data[i + c]);
-        }
+  if (accept) {
+    // Rank cheap frame evidence before running expensive colour/model checks.
+    // Suppress near-duplicates so a textured wall cannot starve the worker.
+    const tried = [];
+    for (const candidate of candidates.sort((a, b) => b.score - a.score)) {
+      if (tried.some(c => Math.hypot((c.x - candidate.x) * width, (c.y - candidate.y) * height) < candidate.width * width * .25 &&
+        Math.abs(Math.log(c.width / candidate.width)) < .25)) continue;
+      tried.push(candidate);
+      const sampled = sampleCore({ data, width, height }, candidate);
+      if (accept(sampled)) return sampled;
+      if (tried.length >= 24) break;
+    }
+    return null;
+  }
+  return best ? sampleCore({ data, width, height }, best) : null;
+}
+
+function sampleCore({ data, width, height }, best) {
+  const whites = [];
+  for (let y = Math.max(0, Math.floor((best.y - best.height / 2) * height)); y < Math.min(height, (best.y + best.height / 2) * height); y++) {
+    for (let x = Math.max(0, Math.floor((best.x - best.width / 2) * width)); x < Math.min(width, (best.x + best.width / 2) * width); x++) {
+      if (Math.abs((x + .5) / width - best.x) < best.width * .3 && Math.abs((y + .5) / height - best.y) < best.height * .3) continue;
+      const i = (y * width + x) * 4, hsv = rgbToHsv(data[i], data[i + 1], data[i + 2]);
+      if (hsv.s < .24 && hsv.v > .18) whites.push(hsv.v);
+    }
+  }
+  if (whites.length >= 6) best.whiteValue = whites.sort((a, b) => a - b)[Math.floor(whites.length * .7)];
+  const channels = [[], [], []], half = Math.max(1, best.width * width * .045);
+  // Four paint samples avoid the printed centre icon, whose contrasting ink
+  // otherwise makes a light-blue key look dark blue (and vice versa).
+  for (const dx of [-.2, .2]) for (const dy of [-.2, .2]) {
+    const cx = (best.x + dx * best.width) * width, cy = (best.y + dy * best.height) * height;
+    for (let y = Math.max(0, Math.floor(cy - half)); y < Math.min(height, cy + half); y++) {
+      for (let x = Math.max(0, Math.floor(cx - half)); x < Math.min(width, cx + half); x++) {
+      const i = (y * width + x) * 4, hsv = rgbToHsv(data[i], data[i + 1], data[i + 2]);
+      if (hsv.s < .25 || hsv.v < .07) continue;
+      for (let c = 0; c < 3; c++) channels[c].push(data[i + c]);
       }
     }
-    if (channels[0].length >= 6) best.rgb = channels.map(values => values.sort((a, b) => a - b)[Math.floor(values.length / 2)]);
   }
+  if (channels[0].length >= 6) best.rgb = channels.map(values => values.sort((a, b) => a - b)[Math.floor(values.length / 2)]);
   return best;
 }

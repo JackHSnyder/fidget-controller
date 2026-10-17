@@ -97,7 +97,7 @@ export function fitPose(observed, size, { previous = null, model = makeModel(), 
       if (fitted.loss < best.loss) best = fitted;
     }
   }
-  if (!best || coarse && (acquire || best.loss > .5 && faceHint)) {
+  if (!best || coarse && (acquire || faceHint && (best.loss > .5 || frontFace(best.pose).index !== faceHint.colour))) {
     const candidates = SEEDS.map(r => {
       const pose = { r, x: previous?.x ?? .5, y: previous?.y ?? .5, scale: previous?.scale ?? .205, depth: previous?.depth ?? 12, principalX, principalY };
       return { pose, loss: evaluate(pose).loss };

@@ -34,10 +34,10 @@
         </aside>
       </div>
       <details class="panel" open><summary>Colour and toy setup</summary>
-        <label>Colour profile<select id="profile"><option value="auto">Automatic</option><option value="recording">Recording lighting</option><option value="daylight">Daylight / original photos</option></select></label>
+        <label>Colour profile<select id="profile"><option value="auto">Automatic</option><option value="indoor">Indoor / dim camera</option><option value="recording">Recording lighting</option><option value="daylight">Daylight / original photos</option></select></label>
         <p>For your lighting, choose a colour below and click that key’s coloured plastic in the preview. Sample all six if possible. Samples stay in this browser.</p>
         <div id="calibration" class="colours" aria-label="Sample key colours"></div><button id="clearCalibration" class="text">Restore default colours</button>
-        <p class="hint">Model layout from your photos: green opposite pink; orange opposite light blue; purple opposite dark blue. With green forward and purple above, orange is on the mirrored preview’s right.</p>
+        <p class="hint">Model layout from your photos: green opposite pink; orange opposite light blue; purple opposite dark blue. In the unmirrored camera image, clockwise around green: light blue, purple, orange, dark blue. The preview reverses this arrangement.</p>
         <label>Key protrusion relative to core half-width <input id="geometry" type="range" min="0.5" max="1.3" step="0.05" value="0.85" /></label>
         <label class="check"><input id="overlay" type="checkbox" checked /> Show fitted model wireframe</label>
         <p class="hint">The coloured keycap sides are included in the model. Similar face angles, covered keys, fast turns, or a poor model fit produce “Uncertain” rather than a guessed turn. Model fit is a matching score, not a probability.</p>

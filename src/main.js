@@ -30,6 +30,7 @@ let lastVisualConfirmation = -Infinity;
 let searchBusy = false, searchJob = null;
 let expectedExtent = null;
 let calibration = {};
+let latestWhiteValue = null, activeProfile = null;
 try {
   const saved = JSON.parse(localStorage.getItem('fidget-colours-v1') || '{}');
   for (const colour of COLOURS) {
@@ -60,7 +61,7 @@ for (const colour of COLOURS) {
 paintCalibration();
 
 function resetTracking() {
-  generation++; pose = null; fitted = null; transitions.reset(); rollTransitions.reset(); lastCore = null;
+  generation++; latestWhiteValue = null; activeProfile = null; pose = null; fitted = null; transitions.reset(); rollTransitions.reset(); lastCore = null;
   lastAcquire = -Infinity; lastAccepted = -Infinity; lastVideoTime = -1; photoDirty = true;
   lastSearch = -Infinity;
   lastVisualConfirmation = performance.now();
@@ -141,6 +142,8 @@ $('download').addEventListener('click', () => {
 });
 
 function sourceSize() { return photo ? [photo.naturalWidth, photo.naturalHeight] : [video.videoWidth, video.videoHeight]; }
+// Keep tracking behaviour independent of the camera's capture resolution.
+function minimumBoxSize() { return Math.max(35, Math.min(...sourceSize()) / 6); }
 function pointer(event) {
   const rect = preview.getBoundingClientRect(), [width, height] = sourceSize();
   return previewToSource(event.clientX, event.clientY, rect, width, height);
@@ -155,7 +158,7 @@ preview.addEventListener('pointerdown', event => {
     for (let i = 0; i < data.length; i += 4) { const hsv = rgbToHsv(data[i], data[i + 1], data[i + 2]); if (hsv.s > .25 && hsv.v > .08) samples.push(hsv); }
     if (samples.length < 10) { message('That sample is too neutral or dark. Click an unprinted coloured area.'); return; }
     const sin = samples.reduce((n, v) => n + Math.sin(v.h * Math.PI / 180), 0), cos = samples.reduce((n, v) => n + Math.cos(v.h * Math.PI / 180), 0);
-    calibration[calibrationColour] = { h: (Math.atan2(sin, cos) * 180 / Math.PI + 360) % 360, s: samples.reduce((n, v) => n + v.s, 0) / samples.length, v: samples.reduce((n, v) => n + v.v, 0) / samples.length };
+    calibration[calibrationColour] = { whiteValue: latestWhiteValue, h: (Math.atan2(sin, cos) * 180 / Math.PI + 360) % 360, s: samples.reduce((n, v) => n + v.s, 0) / samples.length, v: samples.reduce((n, v) => n + v.v, 0) / samples.length };
     calibrationColour = null; storeCalibration(); paintCalibration(); resetTracking(); message('Colour sample saved on this browser.'); return;
   }
   if (!selecting) return;
@@ -168,7 +171,7 @@ preview.addEventListener('pointerup', event => {
   drag.end = pointer(event);
   const side = Math.max(Math.abs(drag.end.x - drag.start.x), Math.abs(drag.end.y - drag.start.y));
   const cx = (drag.start.x + drag.end.x) / 2, cy = (drag.start.y + drag.end.y) / 2;
-  if (side > 35) { roi = { x: cx - side / 2, y: cy - side / 2, side }; minimumRegion = Math.max(70, side * .78); selecting = false; resetTracking(); message('Finding the toy’s orientation…'); }
+  if (side > 35) { roi = { x: cx - side / 2, y: cy - side / 2, side }; minimumRegion = Math.max(minimumBoxSize(), side * .78); selecting = false; resetTracking(); message('Finding the toy’s orientation…'); }
   drag = null;
 });
 
@@ -192,7 +195,8 @@ worker.onmessage = ({ data }) => {
   const result = data.result; fitted = result;
   if (result?.reliable || Number.isInteger(result?.observation?.face)) {
     lastVisualConfirmation = performance.now();
-    expectedExtent = core ? core.width * region.side : result.pose.scale * region.side * 2;
+    activeProfile = result.profile;
+    expectedExtent = Number.isInteger(result?.observation?.face) && core ? core.width * region.side : result.pose.scale * region.side * 2;
   }
   const motionCore = core?.score > MIN_CORE_SCORE ? core : result?.reliable ? { x: result.pose.x, y: result.pose.y, width: result.pose.scale * 2 } : null;
   const clearFace = result?.reliable && result.face.margin >= FACE_MARGIN && result.face.facing >= MIN_FACING;
@@ -239,7 +243,7 @@ searchWorker.onmessage = ({ data }) => {
   if (!data.found || lastVisualConfirmation > searchJob.submittedAt) return;
   const { sourceWidth, sourceHeight } = searchJob;
   const relocated = placeSearchResult(data.found, sourceWidth, sourceHeight, roi);
-  roi = relocated.region; minimumRegion = Math.max(60, roi.side * .55);
+  roi = relocated.region; minimumRegion = Math.max(minimumBoxSize(), roi.side * .55);
   resetTracking();
   lastCore = { x: data.found.x * sourceWidth, y: data.found.y * sourceHeight, extent: data.found.width * sourceWidth };
   message(relocated.moved ? 'Toy found in a new position. Resuming tracking…' : 'Toy reacquired. Resuming tracking…');
@@ -278,14 +282,19 @@ function frame(now) {
     const scan = { x: roi.x - roi.side * .55, y: roi.y - roi.side * .55, side: roi.side * 2.1 };
     coreCtx.clearRect(0, 0, 96, 96);
     coreCtx.drawImage(photo || video, scan.x, scan.y, scan.side, scan.side, 0, 0, 96, 96);
-    const foundCore = locateCore(coreCtx.getImageData(0, 0, 96, 96), { relaxed: true });
+    const foundCore = locateCore(coreCtx.getImageData(0, 0, 96, 96), { relaxed: true,
+      // A printed icon or fingertip must not shrink the box to a tiny false core.
+      expectedWidth: expectedExtent ? expectedExtent / scan.side : null,
+    });
     let core = null;
     if (foundCore?.rgb && foundCore.score > MIN_CORE_SCORE) {
       const current = { x: scan.x + foundCore.x * scan.side, y: scan.y + foundCore.y * scan.side, extent: foundCore.extent * scan.side };
-      if (lastCore && pose) { pose.x += current.x - lastCore.x; pose.y += current.y - lastCore.y; }
-      lastCore = current;
+      // Pose already follows motion between core detections. Adding the delta
+      // from an older core again would double-count that motion after a gap.
+      if (pose) { pose.x = current.x; pose.y = current.y; }
+      lastCore = current; latestWhiteValue = foundCore.whiteValue ?? latestWhiteValue;
       const [sourceWidth, sourceHeight] = sourceSize();
-      minimumRegion = Math.min(minimumRegion, Math.max(60, current.extent * 2.3));
+      minimumRegion = Math.min(minimumRegion, Math.max(minimumBoxSize(), current.extent * 3));
       const side = Math.min(Math.max(minimumRegion, roi.side * .6 + current.extent * 2.7 * .4), Math.max(sourceWidth, sourceHeight));
       roi = { side, x: current.x - side / 2, y: current.y - side / 2 };
       core = { ...foundCore, x: (current.x - roi.x) / side, y: (current.y - roi.y) / side, width: current.extent / side };
@@ -313,7 +322,7 @@ function frame(now) {
     if (acquire) lastAcquire = now;
     job = { id: generation, region: { ...roi }, time: stream || photo ? now : video.currentTime * 1000, previous, core };
     busy = true;
-    const profile = $('profile').value === 'auto' && fitted?.profile && !acquire ? fitted.profile : $('profile').value;
+    const profile = $('profile').value === 'auto' && activeProfile && now - lastVisualConfirmation < 1500 ? activeProfile : $('profile').value;
     worker.postMessage({ id: generation, image, previous, acquire, protrusion: Number($('geometry').value), principalX, principalY, calibration, profile, core }, [image.data.buffer]);
   }
   requestAnimationFrame(frame);
