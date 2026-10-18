@@ -1,2 +1,16 @@
-@import url('https://fonts.googleapis.com/css2?family=DM+Sans:wght@400;500;600;700&family=Space+Grotesk:wght@500;600;700&display=swap');
-
+* { box-sizing: border-box; }
+body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px; font: 16px/1.5 system-ui, sans-serif; color: #17211c; background: #f6f7f5; }
+main { width: min(100%, 420px); }
+h1 { margin: 0 0 20px; font-size: 1.25rem; font-weight: 600; text-align: center; }
+.camera { display: flex; flex-wrap: wrap; justify-content: center; gap: 8px; margin-bottom: 16px; }
+button { font: inherit; cursor: pointer; }
+.camera button { padding: 6px 12px; border: 1px solid #aab2ac; border-radius: 5px; color: inherit; background: white; }
+.camera button:disabled { opacity: .5; cursor: default; }
+#preview { display: block; width: min(100%, 320px); height: auto; margin: 0 auto 8px; border: 1px solid #d7dcd8; background: #ecefec; touch-action: none; cursor: crosshair; }
+#status, #click-status { min-height: 1.5em; margin: 0 0 18px; color: #4b554e; text-align: center; font-size: .875rem; }
+#menu-grid { display: grid; gap: 8px; }
+#menu-grid button { pointer-events: none; cursor: default; width: 100%; padding: 12px 16px; border: 1px solid #c6cdc7; border-radius: 5px; color: inherit; background: white; text-align: left; }
+#menu-grid button[aria-pressed="true"] { border-color: #286849; outline: 2px solid #286849; outline-offset: 1px; background: #edf5ef; }
+#menu-status { margin: 12px 0 0; color: #4b554e; text-align: center; font-size: .875rem; }
+:focus-visible { outline: 2px solid #24643f; outline-offset: 3px; }
+[hidden] { display: none !important; }
