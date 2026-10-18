@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFile } from 'node:fs/promises';
-import { fitPose } from '../src/tracker.js';
-import { FACE_MARGIN, MIN_FACING, multiply } from '../src/cube-model.js';
-import { ScreenTurnEvents } from '../src/screen-turns.js';
+import { fitPose } from '../src/tracking/tracker.js';
+import { FACE_MARGIN, MIN_FACING, multiply } from '../src/tracking/cube-model.js';
+import { ScreenTurnEvents } from '../src/tracking/screen-turns.js';
 
 const recording = JSON.parse(await readFile(new URL('./fixtures/recording-checkpoints.json', import.meta.url), 'utf8'));
 

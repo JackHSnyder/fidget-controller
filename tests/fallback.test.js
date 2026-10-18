@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { COLOURS } from '../src/cube-model.js';
-import { observeKeys } from '../src/vision.js';
-import { analyseFrame } from '../src/frame-analysis.js';
-import { ScreenTurnEvents } from '../src/screen-turns.js';
+import { COLOURS } from '../src/tracking/cube-model.js';
+import { observeKeys } from '../src/tracking/vision.js';
+import { analyseFrame } from '../src/tracking/frame-analysis.js';
+import { ScreenTurnEvents } from '../src/tracking/screen-turns.js';
 
 function observation(face, positions, core = { x: .5, y: .5, width: .25, score: .9 }) {
   const centres = Array(6).fill(null);

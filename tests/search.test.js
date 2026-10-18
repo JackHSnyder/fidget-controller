@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { findToy, placeSearchResult } from '../src/toy-search.js';
-import { locateCore, observeKeys } from '../src/vision.js';
+import { findToy, placeSearchResult } from '../src/tracking/toy-search.js';
+import { locateCore, observeKeys } from '../src/tracking/vision.js';
 
 function scene(width, height, cx, cy, side, { toy = true, partial = false } = {}) {
   const data = new Uint8ClampedArray(width * height * 4);

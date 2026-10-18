@@ -1,8 +1,8 @@
 // Opt-in evaluation of temporary RGB crops produced by prepare-photo-check.py.
 import { readFile } from 'node:fs/promises';
-import { segment } from '../src/vision.js';
-import { fitPose } from '../src/tracker.js';
-import { FACE_MARGIN, MIN_FACING } from '../src/cube-model.js';
+import { segment } from '../src/tracking/vision.js';
+import { fitPose } from '../src/tracking/tracker.js';
+import { FACE_MARGIN, MIN_FACING } from '../src/tracking/cube-model.js';
 const frames = JSON.parse(await readFile(process.argv[2], 'utf8'));
 let failed = false;
 for (const frame of frames) {

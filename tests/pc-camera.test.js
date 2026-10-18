@@ -2,11 +2,11 @@ import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
 import { inflateSync } from 'node:zlib';
-import { COLOURS, FACE_MARGIN, MIN_FACING } from '../src/cube-model.js';
-import { INDOOR_PROFILE } from '../src/colour-profiles.js';
-import { classifyPixel, exposureCalibration, locateCore } from '../src/vision.js';
-import { analyseFrame } from '../src/frame-analysis.js';
-import { ScreenTurnEvents } from '../src/screen-turns.js';
+import { COLOURS, FACE_MARGIN, MIN_FACING } from '../src/tracking/cube-model.js';
+import { INDOOR_PROFILE } from '../src/tracking/colour-profiles.js';
+import { classifyPixel, exposureCalibration, locateCore } from '../src/tracking/vision.js';
+import { analyseFrame } from '../src/tracking/frame-analysis.js';
+import { ScreenTurnEvents } from '../src/tracking/screen-turns.js';
 
 test('physical layout matches the confirmed clockwise unmirrored neighbours of green', () => {
   const neighbours = COLOURS.filter(c => c.normal[2] === 0)

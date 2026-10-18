@@ -1,9 +1,9 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { ScreenTurnEvents } from '../src/screen-turns.js';
-import { COLOURS } from '../src/cube-model.js';
-import { classifyPixel, locateCore, trackedKeyCentres } from '../src/vision.js';
-import { RECORDING_PROFILE } from '../src/colour-profiles.js';
+import { ScreenTurnEvents } from '../src/tracking/screen-turns.js';
+import { COLOURS } from '../src/tracking/cube-model.js';
+import { classifyPixel, locateCore, trackedKeyCentres } from '../src/tracking/vision.js';
+import { RECORDING_PROFILE } from '../src/tracking/colour-profiles.js';
 
 function sample(face, oldOffset, incomingOffset, centre = [.5, .5], scale = .3) {
   const centres = Array(6).fill(null), core = { x: centre[0], y: centre[1], width: scale };

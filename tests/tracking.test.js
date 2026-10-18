@@ -1,8 +1,8 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { COLOURS, identity, multiply, rotation, frontFace, rotationBetween, renderModel, makeModel } from '../src/cube-model.js';
-import { classifyPixel } from '../src/vision.js';
-import { fitPose, defaultPose, RotationEvents } from '../src/tracker.js';
+import { COLOURS, identity, multiply, rotation, frontFace, rotationBetween, renderModel, makeModel } from '../src/tracking/cube-model.js';
+import { classifyPixel } from '../src/tracking/vision.js';
+import { fitPose, defaultPose, RotationEvents } from '../src/tracking/tracker.js';
 
 test('all six requested colours, including shadowed blue and pink near red', () => {
   for (const [rgb, expected] of [ [[230, 30, 85], 'pink'], [[115, 55, 160], 'purple'], [[225, 80, 15], 'orange'], [[95, 145, 35], 'green'], [[25, 130, 170], 'light-blue'], [[28, 42, 85], 'dark-blue'] ]) {

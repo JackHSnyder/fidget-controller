@@ -10,11 +10,78 @@ npm install
 npm run dev
 ```
 
-Open the Local address printed in the terminal (usually http://127.0.0.1:5173).
+Open the local address printed in the terminal (usually http://127.0.0.1:5173). The home page is a simple three item cube menu. For camera calibration, video replay, and tracking details, open `/tracker.html`.
 Keep the terminal running while using the page. Press Ctrl+C to stop it.
 Saving a source file updates the browser automatically through Vite.
 
+## Use the cube menu
+
+The home page has three items: Home, Play, and Settings. Start the camera, drag
+a box around the whole toy, then turn the cube up or down to move the highlight.
+The menu starts on Play. Left and right turns do not move the single-column menu.
+
+Choose **Enable clicks** and allow microphone access to press a key as well as
+turn the cube. A matching click opens the highlighted item's plain example page:
+`home.html`, `play.html`, or `settings.html`. Mouse hover and clicks do not select
+or activate the menu items. Keyboard arrows and Enter/Space remain available
+when the menu has keyboard focus. Each example page has a **Back to the menu** link. Returning to the menu
+requires starting the camera and enabling clicks again.
+The microphone is separate from the camera, so camera tracking still works if
+microphone access is declined. **Disable clicks** releases the microphone.
+
+## Audio key presses
+
+`src/audio/` owns microphone capture, sound recognition, and matching click times
+to camera observations. `src/main.js` connects its `fidgetpress` events to the
+menu, alongside the existing rotation events.
+
+The detector was tuned using the supplied 26.281-second MP3. It checks short
+attacks with strong energy around 6.5–10 kHz, a fast decay, and a rise above the
+recent background level. A 180 ms interval and a relative-volume check suppress
+ringing and quieter key returns. It does not use visual key movement. The audio
+worklet runs separately from the video fitter, using the microphone's actual
+sample rate. Microphone audio is processed locally and is neither recorded,
+uploaded, nor played through the speakers.
+
+Each click is paired with the latest camera observation captured before the
+sound, allowing 120 ms for an in-flight video fit to complete. A colour remains
+usable for up to 400 ms during a brief finger occlusion; repeated display-only
+holds do not renew that deadline. No press event is emitted without a recent
+colour or after an uncertain observation. File/photo review does not use live
+microphone sound. Stopping/changing the camera, hiding the tab, or leaving the
+page stops the microphone. Enable clicks again after returning to the tab.
+
+The full tracker has a **Click sensitivity** slider. Increase it for quiet clicks
+or reduce it if background sounds trigger the detector. This is sound-pattern
+matching, not proof that the toy made the noise: a nearby keyboard or a similar
+sharp, high-frequency sound can still trigger it. The cooldown also limits how
+quickly separate presses can be recognized. The reference regression checks
+cover 36 prominent attacks, two weaker matching transients, and the quieter
+returns; these are recording-specific checks, not a measured live accuracy rate.
+
+Listen for key presses on `window`:
+
+```js
+window.addEventListener('fidgetpress', ({ detail }) => {
+  console.log(detail.colour, detail.time);
+});
+```
+
+Press events contain `colour`, `time` (capture time in `performance.now()`
+milliseconds), `source: 'audio'`, `rms`, `strength` (relative to background),
+`bandEnergy` (fraction in the click band), `faceConfidence`, `faceSource`, and
+`timestamp`. These scores are not calibrated probabilities. The demo also emits
+`menuactivate` with the selected `item` and the press details.
+
+`tests/fixtures/click-audio-features.json` contains only timing, band-energy, and
+amplitude measurements from the reference clip, without audio samples. Optional
+full decoding/replay is available with `tools/prepare-click-audio.py` (requires
+soundfile and numpy), followed by `tools/check-click-audio.mjs`. Both tools take
+file paths as arguments; keep temporary decoded samples outside tracked files.
+
 ## Track the fidget toy
+
+The full camera, calibration, and replay interface is available at `/tracker.html`.
 
 1. Choose **Start camera**, allow camera access, and drag a box tightly around
    the **entire toy**, including the protruding keys. The box becomes square;
@@ -46,7 +113,7 @@ Photos and videos can be loaded locally for testing. Imported videos start
 paused; use the playback slider to find the toy, select it, then press Play.
 Seeking resets tracking history, so it cannot invent a turn across the seek.
 Photos report orientation only; events require consecutive video frames. Files are not uploaded. No
-microphone or key-press detector is included in this version.
+microphone is used during imported photo/video review.
 
 ### Physical layout
 
@@ -66,19 +133,24 @@ dark blue. The UI mirrors the preview only, after detection.
 
 This describes the toy's geometry, **not** a required starting orientation.
 It may start at any roll or with any face forward. A differently assembled toy
-requires changing the face normals in `src/cube-model.js`. The protrusion slider
+requires changing the face normals in `src/tracking/cube-model.js`. The protrusion slider
 adjusts keycap depth; other dimension ratios are in `makeModel()`.
 
 ### How detection works
 
-- `src/vision.js`: HSV segmentation, neutral white-frame localisation, paint
+`src/tracking/` contains the toy geometry, colour recognition, localisation,
+pose fitting, movement recognition, tracking worker, and browser controller. The application
+entry point (`src/main.js`) starts the components and connects cube turns to the menu.
+The menu, preview mirroring, and styles stay in `src/`.
+
+- `src/tracking/vision.js`: HSV segmentation, neutral white-frame localisation, paint
   sampling away from the centre print, and component positions constrained by
   the fitted toy. The neutral core follows independently of a successful pose
   fit, and the search region has a minimum size to stop progressive collapse.
   Local detection tolerates one obscured frame edge, weaker frame contrast,
   and a partly visible central key. The size floor can decrease as the toy
   moves farther away.
-- `src/toy-search.js`: whole-camera reacquisition at multiple sizes and positions,
+- `src/tracking/toy-search.js`: whole-camera reacquisition at multiple sizes and positions,
   including near the image edges. When local detection fails, or no face has
   been confirmed for 700 ms, this search runs at most twice per second using
   a reduced-resolution copy of the full camera image in a separate worker, so
@@ -88,16 +160,16 @@ adjusts keycap depth; other dimension ratios are in `makeModel()`.
   detections take priority over older search results. Reacquisition moves
   the box to the detected toy and resets turn history, so unseen movement
   cannot become an invented menu action.
-- `src/colour-profiles.js` and `src/frame-analysis.js`: lighting profiles and
+- `src/tracking/colour-profiles.js` and `src/tracking/frame-analysis.js`: lighting profiles and
   profile selection. Saturation and relative brightness help separate the blue
   keys when their hues overlap. User samples override the selected profile.
-- `src/cube-model.js`: a white core and six tapered coloured keycaps, including
+- `src/tracking/cube-model.js`: a white core and six tapered coloured keycaps, including
   side walls. A small perspective renderer uses a depth buffer for occlusion.
-- `src/tracker.js`: searches model orientation, position, size, and perspective
+- `src/tracking/tracker.js`: searches model orientation, position, size, and perspective
   against the colour masks, then refines the previous pose on subsequent frames.
   The active face is selected by normal direction. Alternative quarter-turn
   hypotheses let the fitter recover from rapid rotations.
-- `src/screen-turns.js`: face-change direction from the observed outgoing and
+- `src/tracking/screen-turns.js`: face-change direction from the observed outgoing and
   incoming key motion relative to the core. Camera-space translation and size
   changes cancel out. Background components and physically hidden keys are
   excluded. Conflicting or absent evidence returns uncertain. Same-face roll
@@ -112,8 +184,15 @@ adjusts keycap depth; other dimension ratios are in `makeModel()`.
   expires after 1.2 seconds. A covered incoming key can produce a direction
   with an unknown next colour, rather than losing the turn or guessing a colour.
   Model recovery uses the same transition state to avoid duplicate menu steps.
-- `src/tracking-worker.js`: keeps fitting and full-frame searching off the UI thread.
-- `src/main.js`: camera/files, selection, colour sampling, overlay, and events.
+- `src/tracking/tracking-worker.js`: keeps fitting and full-frame searching off the UI thread.
+- `src/tracking/controller.js`: camera/files, selection, colour sampling, overlay,
+  worker coordination, and tracking events, started with `initializeTracking()`.
+- `src/menu.js`: creates the menu with `createMenu()` and exposes `moveSelection()`.
+- `src/audio/controller.js`: microphone permission, capture, controls, and public press events.
+- `src/audio/click-detector.js`: spectrum, onset, decay, and duplicate/return suppression.
+- `src/audio/click-worklet.js`: continuously processes microphone samples off the UI thread.
+- `src/audio/face-clicks.js`: pairs audio capture times with recent front-face colours.
+- `src/main.js`: starts tracking and the menu, then connects their events.
 
 Fitting uses an approximate geometric model, not a trained object recognizer.
 The displayed fit score is **not a calibrated probability**. At similar face
@@ -130,17 +209,15 @@ Live accuracy requires testing a continuous recording from the target camera.
 
 ### Application events
 
-The **Cube menu** panel is a small example consumer in `src/menu.js`. It starts
-at the centre of a 3×3 button grid. Each cardinal turn moves one cell in that
-direction and stops at the edge. Uncertain, diagonal, and roll events are
-ignored. Clicks and arrow keys inside the menu provide a camera-free way to
-try selection. This demo highlights buttons; it does not activate an action.
+The home page menu in `src/menu.js` has three vertically stacked items. Up and
+down turns move the highlight one item; left and right have no effect. Uncertain,
+diagonal, and roll events are ignored.
 
-The connection to the detector is simply:
+The connection to the detector lives in `src/main.js`:
 
 ```js
 window.addEventListener('fidgetrotation', ({ detail }) => {
-  moveSelection(detail?.direction);
+  menu.moveSelection(detail?.direction);
 });
 ```
 
@@ -201,7 +278,7 @@ npm run preview
 
 The build writes the finished site to `dist/`. Upload that folder's contents to
 static hosting when ready. The preview command is for checking the build locally.
-No backend is required. Future camera/microphone features need localhost during
+No backend is required. Camera/microphone access needs localhost during
 development or HTTPS when hosted, plus browser permission.
 
 ### PC camera robustness checks
