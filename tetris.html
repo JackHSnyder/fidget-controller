@@ -1,0 +1,23 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Tetris</title>
+  </head>
+  <body>
+    <main class="tetris-page">
+      <h1>Tetris</h1>
+      <div id="tetris-board" class="tetris-board" role="img" aria-label="Tetris board: 10 columns and 20 rows. Orange cells are the falling piece; green cells are placed blocks."></div>
+      <p class="tetris-legend">Orange: falling piece · Green: placed blocks</p>
+      <p class="tetris-controls">Turn left/right to move · Turn down to lower one row · Press a key to drop</p>
+      <p class="tetris-timing">Tick: <span id="tetris-tick">0</span> · 50 ms per tick</p>
+      <section class="tetris-music" aria-label="Background music">
+        <audio id="tetris-music" loop preload="none" hidden></audio>
+        <p id="tetris-music-status" role="status">Background music starts automatically when available.</p>
+      </section>
+      <section id="fidget-controller" aria-label="Fidget toy controller"></section>
+    </main>
+    <script type="module" src="/src/tetris-page.js"></script>
+  </body>
+</html>

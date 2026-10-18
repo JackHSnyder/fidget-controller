@@ -10,24 +10,33 @@ npm install
 npm run dev
 ```
 
-Open the local address printed in the terminal (usually http://127.0.0.1:5173). The home page is a simple three item cube menu. For camera calibration, video replay, and tracking details, open `/tracker.html`.
+Open the local address printed in the terminal (usually http://127.0.0.1:5173). The home page is a simple three item cube menu. For read-only tracking diagnostics, open `/tracker.html`.
 Keep the terminal running while using the page. Press Ctrl+C to stop it.
 Saving a source file updates the browser automatically through Vite.
 
 ## Use the cube menu
 
-The home page has three items: Home, Play, and Settings. Start the camera, drag
-a box around the whole toy, then turn the cube up or down to move the highlight.
-The menu starts on Play. Left and right turns do not move the single-column menu.
+The site accepts cube input only. Pages have no buttons, links, file pickers,
+sliders, native playback controls, or mouse/keyboard input handlers. Browser
+permission prompts and browser-level controls are outside the site.
 
-Choose **Enable clicks** and allow microphone access to press a key as well as
-turn the cube. A matching click opens the highlighted item's plain example page:
-`home.html`, `play.html`, or `settings.html`. Mouse hover and clicks do not select
-or activate the menu items. Keyboard arrows and Enter/Space remain available
-when the menu has keyboard focus. Each example page has a **Back to the menu** link. Returning to the menu
-requires starting the camera and enabling clicks again.
-The microphone is separate from the camera, so camera tracking still works if
-microphone access is declined. **Disable clicks** releases the microphone.
+Camera and microphone startup is requested automatically on the menu, Tetris,
+Play, Settings, and tracker pages. Allow browser access and bring the toy into
+view. Tracking searches the full frame without manual selection.
+
+The menu has three display-only items: Tetris, Play, and Settings. Turn up/down
+to move the highlight and press a cube key to open the selected page. Left/right
+do not move the single-column menu. In Play and Settings, turn up and
+then press a key to return to the menu. Another turn cancels that return action.
+In Tetris, left/right move the piece, down lowers one row, and a normal key press
+hard drops. Tetris has no cube gesture for leaving the game; up turns are ignored
+and subsequent presses still hard drop. Hidden-page inputs are discarded.
+
+There is no mouse/keyboard fallback for blocked audio. If music or microphone
+processing is blocked by browser autoplay policy, its status explains that;
+hands-free audio requires autoplay to be allowed in the browser. The app cannot
+bypass those permissions. Camera tracking can run without microphone permission.
+Leaving a page releases its camera/microphone and pauses its music.
 
 ## Audio key presses
 
@@ -47,18 +56,17 @@ Each click is paired with the latest camera observation captured before the
 sound, allowing 120 ms for an in-flight video fit to complete. A colour remains
 usable for up to 400 ms during a brief finger occlusion; repeated display-only
 holds do not renew that deadline. No press event is emitted without a recent
-colour or after an uncertain observation. File/photo review does not use live
-microphone sound. Stopping/changing the camera, hiding the tab, or leaving the
-page stops the microphone. Enable clicks again after returning to the tab.
+colour or after an uncertain observation. Hiding the tab or leaving the page
+stops the microphone; an enabled session resumes when returning to the tab.
+Declined permission is not repeatedly requested on tab focus.
 
-The full tracker has a **Click sensitivity** slider. Increase it for quiet clicks
-or reduce it if background sounds trigger the detector. This is sound-pattern
-matching, not proof that the toy made the noise: a nearby keyboard or a similar
-sharp, high-frequency sound can still trigger it. The cooldown also limits how
-quickly separate presses can be recognized. The reference regression checks
-cover 36 prominent attacks, two weaker matching transients, and the quieter
-returns; these are recording-specific checks, not a measured live accuracy rate.
-
+Click sensitivity is configured through the `initializeAudioClicks()` options
+(default 1), rather than a UI slider. This is sound-pattern matching, not proof
+that the toy made the noise: a nearby keyboard or a similar sharp sound can
+still trigger it. The cooldown limits how quickly separate presses are recognized.
+Reference regression checks cover 36 prominent attacks, two weaker matching
+transients, and quieter returns; these are recording-specific checks, not a
+measured live accuracy rate.
 Listen for key presses on `window`:
 
 ```js
@@ -81,39 +89,21 @@ file paths as arguments; keep temporary decoded samples outside tracked files.
 
 ## Track the fidget toy
 
-The full camera, calibration, and replay interface is available at `/tracker.html`.
+`/tracker.html` shows the same automatic camera/microphone setup plus read-only
+face and turn diagnostics. The tracker searches for the toy and follows it
+when visible. No manual selection, calibration controls, uploads, video replay,
+or event-download controls are exposed in the site. Offline inspection tools
+and regression fixtures remain available in the repository.
 
-1. Choose **Start camera**, allow camera access, and drag a box tightly around
-   the **entire toy**, including the protruding keys. The box becomes square;
-   leave a small margin. The tracker follows its position and apparent size.
-2. Keep at least two coloured keys visible. **Automatic** colour setup compares
-   daylight, earlier recording, and dim indoor profiles. The indoor profile
-   and new colour samples adapt to exposure using the surrounding white frame. For the recording's camera/lighting, **Recording lighting** can
-   also be selected explicitly. If colours are misclassified under
-   your lighting, select each colour under **Colour and toy setup** and click
-   an unprinted patch of its plastic in the preview. Samples persist locally.
-3. Turn the toy. **Forward face** is the face with its outward normal closest
-   to pointing at the camera, rather than whichever colour occupies most pixels.
-4. Recent turns show the previous colour, next colour, and camera-relative
-   direction. Download events exports JSON. If the toy leaves the box, the
-   tracker searches the whole camera automatically. **Select toy again** remains
-   available to correct a mistaken selection.
+Automatic colour setup compares daylight, recording, and indoor profiles. Saved
+colour references from earlier versions remain readable. Programmatic options
+on `initializeTracking()` configure profile, protrusion, and overlay; the site
+has no settings inputs.
 
-The preview is **horizontally mirrored**. A left turn means the old front face moves left
-in that image and the right-hand face comes forward. Up means the old front
-face moves up and the bottom face comes forward. Clockwise/anticlockwise describe
-rolls in the mirrored image. These directions do not depend on which colour was on top.
-Combined rotations are labelled diagonal, and unresolved direction is uncertain.
-Footage, selection boxes, and wireframes share the same reflection. Pointer
-coordinates are converted back for toy selection and colour sampling. Internal
-geometry uses the original camera image; public events, the menu, and exported
-directions swap left/right and clockwise/anticlockwise to match the preview.
-
-Photos and videos can be loaded locally for testing. Imported videos start
-paused; use the playback slider to find the toy, select it, then press Play.
-Seeking resets tracking history, so it cannot invent a turn across the seek.
-Photos report orientation only; events require consecutive video frames. Files are not uploaded. No
-microphone is used during imported photo/video review.
+The preview is horizontally mirrored. Left/right and clockwise/anticlockwise
+events follow the mirrored image. Up means the previous front face moves up and
+the lower face comes forward. Conflicting direction evidence remains uncertain;
+reacquisition resets history so an unseen turn cannot become a menu step.
 
 ### Physical layout
 
@@ -133,7 +123,7 @@ dark blue. The UI mirrors the preview only, after detection.
 
 This describes the toy's geometry, **not** a required starting orientation.
 It may start at any roll or with any face forward. A differently assembled toy
-requires changing the face normals in `src/tracking/cube-model.js`. The protrusion slider
+requires changing the face normals in `src/tracking/cube-model.js`. The programmatic protrusion option
 adjusts keycap depth; other dimension ratios are in `makeModel()`.
 
 ### How detection works
@@ -185,10 +175,10 @@ The menu, preview mirroring, and styles stay in `src/`.
   with an unknown next colour, rather than losing the turn or guessing a colour.
   Model recovery uses the same transition state to avoid duplicate menu steps.
 - `src/tracking/tracking-worker.js`: keeps fitting and full-frame searching off the UI thread.
-- `src/tracking/controller.js`: camera/files, selection, colour sampling, overlay,
+- `src/tracking/controller.js`: automatic camera capture, saved colour references, overlay,
   worker coordination, and tracking events, started with `initializeTracking()`.
 - `src/menu.js`: creates the menu with `createMenu()` and exposes `moveSelection()`.
-- `src/audio/controller.js`: microphone permission, capture, controls, and public press events.
+- `src/audio/controller.js`: automatic microphone permission, capture, lifecycle, and public press events.
 - `src/audio/click-detector.js`: spectrum, onset, decay, and duplicate/return suppression.
 - `src/audio/click-worklet.js`: continuously processes microphone samples off the UI thread.
 - `src/audio/face-clicks.js`: pairs audio capture times with recent front-face colours.

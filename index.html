@@ -9,29 +9,10 @@
   <body>
     <main>
       <h1>Cube menu</h1>
-      <section class="camera" aria-label="Cube camera controls">
-        <button id="start" type="button">Start camera</button>
-        <button id="stop" type="button" disabled>Stop</button>
-        <button id="select" type="button" disabled>Select toy</button>
-        <button id="microphone" type="button" aria-pressed="false" disabled>Enable clicks</button>
-      </section>
-      <video id="camera" autoplay playsinline muted hidden></video>
-      <canvas id="preview" width="960" height="540" aria-label="Camera preview. Drag around the fidget cube to select it." hidden></canvas>
-      <p id="status" role="status">Start the camera, then select the whole toy to control the menu.</p>
-      <p id="click-status" role="status">Start the camera to enable key clicks.</p>
+      <section id="fidget-controller" aria-label="Fidget toy controller"></section>
       <section id="menu-grid" aria-label="Cube menu"></section>
       <p id="menu-status" role="status" aria-live="polite"></p>
 
-      <!-- The tracker keeps its configuration controls off the simple menu page. -->
-      <div hidden>
-        <p id="empty"></p><div id="replay"><button id="playReplay"></button><input id="seek" /><span id="replayTime"></span></div>
-        <input id="sourceFile" type="file" /><button id="clearCalibration"></button><div id="calibration"></div>
-        <select id="profile"><option value="auto">Automatic</option></select>
-        <input id="geometry" type="range" value="0.85" /><input id="overlay" type="checkbox" checked />
-        <button id="menu-reset" type="button"></button><button id="clearEvents" type="button"></button>
-        <button id="download" type="button"></button><span id="active"></span><span id="confidence"></span>
-        <span id="direction"></span><span id="timing"></span><ol id="events"></ol>
-      </div>
     </main>
     <script type="module" src="/src/menu-page.js"></script>
   </body>
